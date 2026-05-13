@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ember & Oak — Fine Dining</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUTH MODAL (shown before app loads)
+═══════════════════════════════════════════════════════════ -->
+<div class="auth-modal" id="authModal" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">Ember <span>&amp;</span> Oak</div>
+
+    <!-- Tab switcher -->
+    <div class="auth-tabs">
+      <button class="tab tab--active" id="authTabLogin">Sign In</button>
+      <button class="tab" id="authTabRegister">Register</button>
+    </div>
+
+    <!-- STEP 1: Login -->
+    <div id="loginStep">
+      <form class="form" id="loginForm">
+        <div class="form__group">
+          <label class="form__label">Email</label>
+          <input class="form__input" type="email" id="loginEmail" placeholder="you@example.com" required />
+        </div>
+        <div class="form__group">
+          <label class="form__label">Password</label>
+          <input class="form__input" type="password" id="loginPassword" placeholder="••••••••" required />
+        </div>
+        <button class="btn btn--primary btn--full" type="submit">Continue</button>
+        <p class="form__message" id="loginMessage"></p>
+      </form>
+    </div>
+
+    <!-- STEP 2: OTP -->
+    <div id="otpStep" style="display:none">
+      <p class="auth-otp-info">We sent a 6-digit code to <strong id="otpEmailDisplay"></strong></p>
+      <form class="form" id="otpForm">
+        <div class="form__group">
+          <label class="form__label">Enter OTP</label>
+          <input class="form__input auth-otp-input" type="text" id="otpCode" placeholder="000000" maxlength="6" inputmode="numeric" required />
+        </div>
+        <p class="auth-timer">Expires in <span id="otpTimer">10:00</span></p>
+        <button class="btn btn--primary btn--full" type="submit">Verify OTP</button>
+        <p class="form__message" id="otpMessage"></p>
+      </form>
+    </div>
+
+    <!-- Register -->
+    <div id="registerStep" style="display:none">
+      <form class="form" id="registerForm">
+        <div class="form__group">
+          <label class="form__label">Full Name</label>
+          <input class="form__input" type="text" id="regName" placeholder="Jane Doe" required />
+        </div>
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label">Email</label>
+            <input class="form__input" type="email" id="regEmail" placeholder="you@example.com" required />
+          </div>
+          <div class="form__group">
+            <label class="form__label">Phone</label>
+            <input class="form__input" type="tel" id="regPhone" placeholder="+91 9XXXXXXXXX" />
+          </div>
+        </div>
+        <div class="form__group">
+          <label class="form__label">Password</label>
+          <input class="form__input" type="password" id="regPassword" placeholder="Min 8 characters" required />
+        </div>
+        <button class="btn btn--primary btn--full" type="submit">Create Account</button>
+        <p class="form__message" id="registerMessage"></p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN APP CONTENT
+═══════════════════════════════════════════════════════════ -->
+<div id="appContent" style="display:none">
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <a href="#" class="nav__logo">Ember <span>&amp;</span> Oak</a>
+  <ul class="nav__links">
+    <li><a href="#menu" class="nav__link">Menu</a></li>
+    <li><a href="#reserve" class="nav__link">Reserve</a></li>
+    <li><a href="#" class="nav__link" id="navOrders">My Orders</a></li>
+    <li><a href="#" class="nav__link" id="navReservations">My Reservations</a></li>
+    <li><a href="#checkout" class="nav__link nav__link--cart">
+      Cart <span class="cart-count" id="cartCount">0</span>
+    </a></li>
+    <li class="nav__user">
+      <span id="navUserName"></span>
+      <button class="btn-logout" id="logoutBtn">Sign Out</button>
+    </li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__bg"></div>
+  <div class="hero__content">
+    <p class="hero__eyebrow">Est. 2018 · Mumbai</p>
+    <h1 class="hero__title">Where Fire<br/><em>Meets Flavour</em></h1>
+    <p class="hero__sub">Seasonal menus inspired by wood-fired tradition</p>
+    <div class="hero__cta">
+      <a href="#menu" class="btn btn--primary">Explore Menu</a>
+      <a href="#reserve" class="btn btn--ghost">Book a Table</a>
+    </div>
+  </div>
+  <div class="hero__scroll">scroll</div>
+</section>
+
+<!-- MENU -->
+<section class="section" id="menu">
+  <div class="container">
+    <div class="section__header">
+      <p class="section__eyebrow">Curated Selection</p>
+      <h2 class="section__title">Our Menu</h2>
+    </div>
+    <div class="tabs" id="categoryTabs">
+      <button class="tab tab--active" data-cat="all">All</button>
+    </div>
+    <div class="menu-grid" id="menuGrid">
+      <div class="loader" id="menuLoader">Loading menu…</div>
+    </div>
+  </div>
+</section>
+
+<!-- RESERVATION -->
+<section class="section section--dark" id="reserve">
+  <div class="container container--sm">
+    <div class="section__header">
+      <p class="section__eyebrow">Reserve Your Evening</p>
+      <h2 class="section__title">Book a Table</h2>
+    </div>
+    <form class="form" id="reservationForm">
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label">Full Name</label>
+          <input class="form__input" type="text" id="resName" placeholder="Jane Doe" required />
+        </div>
+        <div class="form__group">
+          <label class="form__label">Email</label>
+          <input class="form__input" type="email" id="resEmail" placeholder="jane@example.com" required />
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label">Phone</label>
+          <input class="form__input" type="tel" id="resPhone" placeholder="+91 9XXXXXXXXX" />
+        </div>
+        <div class="form__group">
+          <label class="form__label">Party Size</label>
+          <input class="form__input" type="number" id="resParty" min="1" max="12" value="2" required />
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label">Date</label>
+          <input class="form__input" type="date" id="resDate" required />
+        </div>
+        <div class="form__group">
+          <label class="form__label">Time</label>
+          <select class="form__input" id="resTime" required>
+            <option value="">Select time</option>
+            <option>12:00</option><option>12:30</option>
+            <option>13:00</option><option>13:30</option>
+            <option>19:00</option><option>19:30</option>
+            <option>20:00</option><option>20:30</option>
+            <option>21:00</option>
+          </select>
+        </div>
+      </div>
+      <div class="form__group">
+        <label class="form__label">Special Requests</label>
+        <textarea class="form__input form__textarea" id="resRequests" placeholder="Allergies, celebrations, seating preferences…"></textarea>
+      </div>
+      <button class="btn btn--primary btn--full" type="submit">Confirm Reservation</button>
+      <p class="form__message" id="resMessage"></p>
+    </form>
+  </div>
+</section>
+
+<!-- CHECKOUT -->
+<section class="section" id="checkout">
+  <div class="container container--sm">
+    <div class="section__header">
+      <p class="section__eyebrow">Review &amp; Pay</p>
+      <h2 class="section__title">Your Order</h2>
+    </div>
+    <div class="cart" id="cartItems">
+      <p class="cart__empty">Your cart is empty. Add items from the menu above.</p>
+    </div>
+    <div class="cart__summary" id="cartSummary" style="display:none">
+      <div class="cart__row"><span>Subtotal</span><span id="summarySubtotal">₹0.00</span></div>
+      <div class="cart__row"><span>GST (5%)</span><span id="summaryTax">₹0.00</span></div>
+      <div class="cart__row cart__row--total"><span>Total</span><span id="summaryTotal">₹0.00</span></div>
+      <div class="form__group" style="margin-top:1.5rem">
+        <label class="form__label">Order Type</label>
+        <select class="form__input" id="orderType">
+          <option value="dine_in">Dine In</option>
+          <option value="takeaway">Takeaway</option>
+          <option value="delivery">Delivery</option>
+        </select>
+      </div>
+      <div class="form__group" id="deliveryAddressGroup" style="display:none">
+        <label class="form__label">Delivery Address</label>
+        <textarea class="form__input form__textarea" id="deliveryAddress"></textarea>
+      </div>
+      <button class="btn btn--primary btn--full" id="placeOrderBtn">Place Order</button>
+      <p class="form__message" id="orderMessage"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ORDER HISTORY -->
+<section class="section section--alt" id="orders-history">
+  <div class="container container--sm">
+    <div class="section__header">
+      <p class="section__eyebrow">Your Activity</p>
+      <h2 class="section__title">My Orders</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="history-filters">
+      <div class="form__group">
+        <label class="form__label">Date</label>
+        <input class="form__input" type="date" id="filterOrderDate" />
+      </div>
+      <div class="form__group">
+        <label class="form__label">Order Type</label>
+        <select class="form__input" id="filterOrderType">
+          <option value="">All Types</option>
+          <option value="dine_in">Dine In</option>
+          <option value="takeaway">Takeaway</option>
+          <option value="delivery">Delivery</option>
+        </select>
+      </div>
+      <div class="form__group">
+        <label class="form__label">Diet</label>
+        <select class="form__input" id="filterOrderDiet">
+          <option value="">All</option>
+          <option value="veg">Veg Only</option>
+          <option value="nonveg">Non-Veg</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="myOrdersList"><p class="loader">Sign in to see your orders.</p></div>
+  </div>
+</section>
+
+<!-- RESERVATION HISTORY -->
+<section class="section" id="reservations-history">
+  <div class="container container--sm">
+    <div class="section__header">
+      <p class="section__eyebrow">Your Bookings</p>
+      <h2 class="section__title">My Reservations</h2>
+    </div>
+    <div id="myReservationsList"><p class="loader">Sign in to see your reservations.</p></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <p class="footer__logo">Ember <span>&amp;</span> Oak</p>
+  <p class="footer__copy">© 2025 Ember & Oak. All rights reserved.</p>
+</footer>
+
+</div><!-- end #appContent -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
