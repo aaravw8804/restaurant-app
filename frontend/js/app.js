@@ -34,12 +34,46 @@ window.addEventListener("scroll", () => {
   $("#nav").classList.toggle("scrolled", window.scrollY > 40);
 });
 
+// ── SESSION HELPERS ────────────────────────────────────────
+function clearSession() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem("eo_token");
+  localStorage.removeItem("eo_user");
+}
+
+// Call after every authenticated fetch — returns true if 401 was handled
+function handleApiError(status) {
+  if (status === 401) {
+    clearSession();
+    showToast("Session expired. Please sign in again.");
+    showAuthModal("login");
+    return true;
+  }
+  return false;
+}
+
 // ── MAIN INIT ──────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   if (!authToken || !currentUser) {
     showAuthModal("login");
   } else {
-    initApp();
+    // Silently validate token before loading app
+    try {
+      const check = await fetch(`${API_BASE}/api/health`, { headers: authHeaders() });
+      // health is public, so use orders/my to actually test auth
+      const authCheck = await fetch(`${API_BASE}/api/orders/my`, { headers: authHeaders() });
+      if (authCheck.status === 401) {
+        clearSession();
+        showToast("Session expired. Please sign in again.");
+        showAuthModal("login");
+      } else {
+        initApp();
+      }
+    } catch {
+      // Flask not running or network error — still try to load
+      initApp();
+    }
   }
 
   $("#authTabLogin")?.addEventListener("click", () => showAuthModal("login"));
@@ -396,6 +430,7 @@ async function handlePlaceOrder() {
       }),
     });
     const data = await res.json();
+    if (handleApiError(res.status)) return;
     if (!res.ok) throw new Error(data.error || "Order failed");
     cart = []; saveCart(); updateCartUI();
     msgEl.className = "form__message form__message--success";
@@ -430,6 +465,7 @@ async function handleReservation(e) {
       }),
     });
     const data = await res.json();
+    if (handleApiError(res.status)) return;
     if (!res.ok) throw new Error(data.error || "Reservation failed");
     msgEl.className = "form__message form__message--success";
     msgEl.textContent = `✓ ${data.message} Ref: ${data.reservation_id.slice(0,8)}`;
@@ -460,6 +496,7 @@ async function loadMyOrders() {
 
   try {
     const res = await fetch(`${API_BASE}/api/orders/my?${params}`, { headers: authHeaders() });
+    if (handleApiError(res.status)) return;
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
@@ -505,6 +542,7 @@ async function loadMyReservations() {
 
   try {
     const res = await fetch(`${API_BASE}/api/reservations/my`, { headers: authHeaders() });
+    if (handleApiError(res.status)) return;
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 

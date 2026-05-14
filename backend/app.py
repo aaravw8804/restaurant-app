@@ -12,7 +12,7 @@ import string
 import psycopg2
 import psycopg2.extras
 import requests as http_requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, date, time as time_type
 from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -44,7 +44,7 @@ def create_token(user_id, role):
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": datetime.utcnow() + timedelta(hours=24)
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
@@ -99,8 +99,23 @@ def send_otp_email(to_email, otp, name):
         return False
 
 # ──────────────────────────────────────────────────────────
-# AUTH — REGISTER
+# JSON SERIALIZATION HELPER
 # ──────────────────────────────────────────────────────────
+import decimal
+
+def serialize_row(row):
+    """Convert psycopg2 RealDictRow to a JSON-safe dict."""
+    result = {}
+    for k, v in row.items():
+        if isinstance(v, (datetime, date)):
+            result[k] = v.isoformat()
+        elif isinstance(v, time_type):
+            result[k] = v.strftime("%H:%M:%S")
+        elif isinstance(v, decimal.Decimal):
+            result[k] = float(v)
+        else:
+            result[k] = v
+    return result
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     body = request.json or {}
@@ -145,7 +160,7 @@ def login():
 
     # Generate 6-digit OTP
     otp = "".join(random.choices(string.digits, k=6))
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -284,7 +299,7 @@ def create_order():
 
                 cur.execute("""
                     INSERT INTO orders (user_id, table_id, order_type, subtotal, tax, total, delivery_address, notes)
-                    VALUES (%s:uuid, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                    VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """, (request.user_id, table_id, order_type, subtotal, tax, total, delivery_address, notes))
                 order_id = cur.fetchone()["id"]
 
@@ -336,7 +351,7 @@ def get_my_orders():
             query += " GROUP BY o.id ORDER BY o.created_at DESC"
 
             cur.execute(query, params)
-            orders = [dict(r) for r in cur.fetchall()]
+            orders = [serialize_row(r) for r in cur.fetchall()]
 
             # Diet filter (post-query since it's per-item)
             if diet_filter == "veg":
@@ -361,8 +376,8 @@ def get_order(order_id):
                 JOIN menu_items mi ON oi.menu_item_id = mi.id
                 WHERE oi.order_id = %s
             """, (order_id,))
-            order_items = [dict(r) for r in cur.fetchall()]
-    result = dict(order)
+            order_items = [serialize_row(r) for r in cur.fetchall()]
+    result = serialize_row(order)
     result["items"] = order_items
     return jsonify(result)
 
@@ -429,7 +444,7 @@ def get_my_reservations():
                 WHERE r.user_id = %s::uuid
                 ORDER BY r.reserved_date DESC, r.reserved_time DESC
             """, (request.user_id,))
-            reservations = [dict(r) for r in cur.fetchall()]
+            reservations = [serialize_row(r) for r in cur.fetchall()]
     return jsonify({"reservations": reservations})
 
 @app.route("/api/reservations/check-availability", methods=["GET"])
@@ -507,7 +522,7 @@ def stripe_webhook():
 # ──────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+    return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
