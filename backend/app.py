@@ -156,7 +156,7 @@ def login():
             user = cur.fetchone()
 
     if not user or not bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
-        return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Invalid Credentials"}), 401
 
     # Generate 6-digit OTP
     otp = "".join(random.choices(string.digits, k=6))
