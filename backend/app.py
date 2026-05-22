@@ -522,7 +522,7 @@ def stripe_webhook():
 # ──────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()})
+    return jsonify({"status": "ok", "timestamp": datetime.now(timezone.dst).isoformat})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
