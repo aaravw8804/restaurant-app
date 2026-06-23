@@ -322,7 +322,7 @@ def get_my_orders():
     diet_filter = request.args.get("diet")  # "veg" or "nonveg"
 
     with get_db() as conn:
-        with conn.cursor() as cur: 
+        with conn.cursor() as cur:             
             query = """
                 SELECT o.id, o.order_type, o.status, o.subtotal, o.tax, o.total,
                        o.payment_status, o.created_at,
